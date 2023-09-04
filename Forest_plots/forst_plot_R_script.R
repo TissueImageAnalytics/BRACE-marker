@@ -135,7 +135,7 @@ forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_
 ##the function forest_plot is expecting the event value=1 for an event and anything else will be set to 0 i.e. no event
 
 ##params: 
-work_dir = 'D:/warwick/tasks/Nottingham_Exemplar/ML/cellular_analysis/R' ##path where the code and other files are
+work_dir = '/Rcode/' ##path where the code and other files are
 cohorts <- list("NOTT","UHCW") ## <"NOTT"|"UHCW">
 
 feature_list <- list("BRACE")
