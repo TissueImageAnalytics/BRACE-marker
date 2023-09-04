@@ -7,40 +7,40 @@ library("survival")
 library("dplyr")
 library("survminer")
 
-forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_at, plot_width, plot_height){
+forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_at, plot_width, plot_height, cohort_name){
   setwd(work_dir)
   tdata <- read.csv(file=csv_name, header=TRUE, sep=",", check.names=TRUE)
-  
+
   ##drop cases with LN=+  ##Lymph.Node.status
   if (LN_status == 0)
     tdata <- tdata[!(tdata$Lymph.Node.status==1),]
   
-  tdata$HGC1 = (tdata$HGC)
+  tdata$BRACE1 = (tdata$BRACE)
   tdata$Grade[tdata$Grade==1]<- "1"
-  #names(tdata)  ##print the column names
   
-  #tdata$HGC[tdata$HGC1<=median(tdata$HGC1)]<-"0"
-  #tdata$HGC[tdata$HGC1>median(tdata$HGC1)]<-"1"
-  tdata$HGC[tdata$HGC1<=0.92]<-"0"
-  tdata$HGC[tdata$HGC1>0.92]<-"1"
+  tdata$BRACE[tdata$BRACE1<=1.28]<-"0"
+  tdata$BRACE[tdata$BRACE1>1.28]<-"1"
   
-  tdata$NPI2 = tdata$NPI
-  #tdata$NPI[tdata$NPI2<=median(tdata$NPI2)]<-"0"
-  #tdata$NPI[tdata$NPI2>median(tdata$NPI2)]<-"1"
-  tdata$NPI[tdata$NPI2<=3.3]<-"0"
-  tdata$NPI[tdata$NPI2>3.3]<-"1"
-
+  tdata$Magee2_no_npi = tdata$Magee_new2_no_npi
+  if (cohort_name=="NOTT"){
+    tdata$Magee2_nonpi[tdata$Magee2_no_npi<=11]<-"0"
+    tdata$Magee2_nonpi[tdata$Magee2_no_npi>11]<-"1"}
+  
+  tdata$Age2 = tdata$Age
+  tdata$Age[tdata$Age2>=50]<-"1"
+  tdata$Age[tdata$Age2<50]<-"0"
+  
   tdata$Tumour_Size2 = tdata$Tumour_Size
   tdata$Tumour_Size[tdata$Tumour_Size2>median(tdata$Tumour_Size2)]<-"1"
   tdata$Tumour_Size[tdata$Tumour_Size2<=median(tdata$Tumour_Size2)]<-"0"
   
   if (event_name=="DMFS"){
-    tdata$time = tdata$TTLR..month  ###@@@@@@@@ for DMFS: TTLR..month, for BCSS: Breast.cancer.specific.survival..month  @@@@@@@@@@@@@@@@@
+    tdata$time = tdata$TTDM..month  ###@@@@@@@@ for DMFS: TTDM..month, for BCSS: Breast.cancer.specific.survival..month  @@@@@@@@@@@@@@@@@
     tdata$event = tdata$Distant.Metastasis ###@@@@@@@ for DMFS: Distant.Metastasis, for BCSS: Survival.Status  @@@@@@@@@@@@@@@@
   }
   
   if (event_name=="BCSS"){
-    tdata$time = tdata$Breast.cancer.specific.survival..month  ###@@@@@@@@ for DMFS: TTLR..month, for BCSS: Breast.cancer.specific.survival..month  @@@@@@@@@@@@@@@@@
+    tdata$time = tdata$Breast.cancer.specific.survival..month  ###@@@@@@@@ for DMFS: TTDM..month, for BCSS: Breast.cancer.specific.survival..month  @@@@@@@@@@@@@@@@@
     tdata$event = tdata$Survival.Status ###@@@@@@@ for DMFS: Distant.Metastasis, for BCSS: Survival.Status  @@@@@@@@@@@@@@@@
   }
 
@@ -51,43 +51,59 @@ forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_
   ##convert events to 0, 1
   tdata$event[tdata$event > 1] <- 0
   
-  if (feat == "HGC"){
-    tdata <- tdata %>%
-      transmute(time, event, Age = Age,
-                'Tumour size' = factor(Tumour_Size, labels = c("<=1.4 cm",">1.4 cm")),
-                LVI = factor(LVI, labels = c("No","Yes")),
-                #'Menopause' = factor(Menopausal_status, labels = c("No","Yes")),
+  if (feat == "BRACE"){
+    if(cohort_name == 'NOTT'){
+      if (LN_status == 0){
+        tdata <- tdata %>%
+        transmute(time, event, 
+                'Age at diagnosis' = factor(Age, labels = c("<50",">=50")),
                 'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
-                'Associated DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
-                'Associated LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
-                HGC = factor(HGC, labels = c("Low","High")),
-      )
-  }
-  
-  if (feat == "NPI"){
-    tdata <- tdata %>%
-      transmute(time, event, Age = Age,
-                'Tumour size' = factor(Tumour_Size, labels = c("<=1.4 cm",">1.4 cm")),
+                'DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
+                'LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
                 LVI = factor(LVI, labels = c("No","Yes")),
-                #'Menopause' = factor(Menopausal_status, labels = c("No","Yes")),
-                'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
-                'Associated DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
-                'Associated LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
-                NPI = factor(NPI, labels = c("Low","High")),
-      )
-  }
-  
-  if (feat == "Grade"){
-    tdata <- tdata %>%
-      transmute(time, event, Age = Age,
-                'Tumour size' = factor(Tumour_Size, labels = c("<=1.4 cm",">1.4 cm")),
-                LVI = factor(LVI, labels = c("No","Yes")),
-                #'Menopause' = factor(Menopausal_status, labels = c("No","Yes")),
-                'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
-                'Associated DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
-                'Associated LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
                 Grade = factor(Grade, labels = c("1, 2","3")),
-      )
+                Magee2 = factor(Magee2_nonpi, labels = c("Low","High")),
+                BRACE = factor(BRACE, labels = c("Low","High")),)
+      }
+      if (LN_status == 1){
+        tdata <- tdata %>%
+          transmute(time, event, 
+                'Age at diagnosis' = factor(Age, labels = c("<50",">=50")),
+                'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
+                'DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
+                'LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
+                'Lymph node status' = factor(Lymph.Node.status, labels = c("No","Yes")),
+                LVI = factor(LVI, labels = c("No","Yes")),
+                Grade = factor(Grade, labels = c("1, 2","3")),
+                Magee2 = factor(Magee2_nonpi, labels = c("Low","High")),
+                BRACE = factor(BRACE, labels = c("Low","High")),)
+      }
+    }
+    if(cohort_name == 'UHCW'){
+      if (LN_status == 0){
+        tdata <- tdata %>%
+          transmute(time, event, 
+                'Age at diagnosis' = factor(Age, labels = c("<50",">=50")),
+                'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
+                'DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
+                'LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
+                'Tumour size' = factor(Tumour_Size, labels = c("<2 cm",">=2 cm")),
+                Grade = factor(Grade, labels = c("1, 2","3")),
+                BRACE = factor(BRACE, labels = c("Low","High")),)
+      }
+      if (LN_status == 1){
+        tdata <- tdata %>%
+          transmute(time, event, 
+                'Age at diagnosis' = factor(Age, labels = c("<50",">=50")),
+                'Multifocality' = factor(Multifocality, labels = c("No","Yes")),
+                'DCIS' = factor(Associated_DCIS, labels = c("No","Yes")),
+                'LCIS' = factor(Associated_LCIS, labels = c("No","Yes")),
+                'Tumour size' = factor(Tumour_Size, labels = c("<2 cm",">=2 cm")),
+                'Lymph node status' = factor(Lymph.Node.status, labels = c("No","Yes")),
+                Grade = factor(Grade, labels = c("1, 2","3")),
+                BRACE = factor(BRACE, labels = c("Low","High")),)
+      }
+    }
   }
   
   panels <- list(
@@ -98,7 +114,6 @@ forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_
     
     list(width = 0.03, item = "vline", hjust = 0.5),
     list(width = 0.55, item = "forest", hjust = 0.5, heading = "", linetype = "dashed", line_x = 0),
-    #list(width = 0.03, item = "vline", hjust = 0.5),
     list(width = 0.12, hjust=1, display = ~ ifelse(reference, "Reference", sprintf(
       "%0.2f (%0.2f, %0.2f)",
       trans(estimate), trans(conf.low), trans(conf.high)
@@ -106,29 +121,40 @@ forest_plot <- function(work_dir, csv_name, feat, LN_status, event_name, censor_
     list(width = 0.03, item = "vline", hjust = 0.5),
     list(
       width = 0.05,
-      display = ~ ifelse(reference, "", format.pval(p.value, digits = 1, eps = 0.001)),
-      display_na = NA, hjust = 1, heading = "p"
+      display = ~ ifelse(reference, "", format.pval(p.value, digits = 1)),
+      display_na = NA, hjust = 1, heading = "P"
     ),
     list(width = 0.03)
   )
 
-  #mdl = coxph(Surv(time, event) ~ ., tdata)
-  #mdl
-
   print(forest_model(coxph(Surv(time, event) ~ ., tdata), panels))
-  ggsave("forest_plot.pdf", width=plot_width, height=plot_height)
+  ggsave(paste(cohort_name,  feat, event_name, ln_status, ".pdf"), width=plot_width, height=plot_height)
 }
 
 ##### usage of the above function for generating forest plots ######@@@@@@@@@@@@@@@
 ##the function forest_plot is expecting the event value=1 for an event and anything else will be set to 0 i.e. no event
 
 ##params: 
-work_dir = 'D:/warwick/tasks/Nottingham_Exemplar/ML/cellular_analysis/R' ##path were the code, files are
-csv_name = "HGC_UHCW_g1g2g3_tumor_per2_patchnew.csv" ##name of the csv file which contains the features
-feature = "Grade" ##column name of the feature (<"HGC"|"Grade"|"NPI">)
-ln_status = 0 ##lymph node status. 0 for LN-, 1 for LN 0-3
-event_name = "BCSS" ##<"DMFS"|"BCSS">
+work_dir = 'D:/warwick/tasks/Nottingham_Exemplar/ML/cellular_analysis/R' ##path where the code and other files are
+cohorts <- list("NOTT","UHCW") ## <"NOTT"|"UHCW">
+
+feature_list <- list("BRACE")
+ln_status_list <- list(0, 1) ##lymph node status. 0 for LN-, 1 for LN 0-3
+event_name_list <- list("DMFS","BCSS") ##<"DMFS"|"BCSS">
 censor_at = 120 ##months at which to censor the data (time, event)
-plot_width = 9.15 ##width of the plot when saving
-plot_height = 3.75 ##width of the plot when saving
-forest_plot(work_dir, csv_name, feature, ln_status, event_name, censor_at, plot_width, plot_height)
+plot_width = 12 ##width of the plot when saving
+plot_height = 5 ##width of the plot when saving
+
+for (c in cohorts){
+  if (c == "NOTT"){
+    csv_name = "NOTT_combi_valid_magee2_onco.csv"
+  }
+  if (c == "UHCW"){
+    csv_name = 'UHCW_BRACE_test_onco_modified.csv'
+  }
+  
+  for (feature in feature_list)
+    for (event_name in event_name_list)
+      for (ln_status in ln_status_list)
+        forest_plot(work_dir, csv_name, feature, ln_status, event_name, censor_at, plot_width, plot_height, c)
+}
