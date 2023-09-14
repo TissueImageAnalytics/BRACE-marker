@@ -172,7 +172,7 @@ if __name__ == '__main__':
     event_of_interest = {'DMFS': {'time': 'TTDM/ month', 'event': 'Distant Metastasis'}, 'BCSS': {'time': 'Breast cancer specific survival/ month', 'event': 'Survival Status'}}
     censor_months = 120 #in months. e.g 10 years = 120 months. 180 for 15 years, 240 for 20 years. Use -1 if no censoring is required 
     
-    for cohort in ['Cohort-A','Cohort-B']: ## ['Cohort-A', 'Cohort-B]
+    for cohort in ['Cohort-B']: ## ['Cohort-A', 'Cohort-B]
         print('Cohort: ', cohort)
         results_df = pd.DataFrame()  ## Dataframe to save the results
 
